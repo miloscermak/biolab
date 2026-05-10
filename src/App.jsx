@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, collection, addDoc, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
-import { Users, ChevronRight, BarChart3, QrCode, Trophy, Presentation, Link as LinkIcon } from 'lucide-react';
+import { Users, ChevronRight, BarChart3, QrCode, Trophy, Presentation, Link as LinkIcon, RefreshCw } from 'lucide-react';
 import { auth, db, APP_ID } from './firebase.js';
 import { QUESTIONS } from './questions.js';
 
@@ -98,6 +98,17 @@ const App = () => {
     const snapshot = await getDocs(votesCol);
     for (const d of snapshot.docs) {
       await deleteDoc(d.ref);
+    }
+  };
+
+  // Manuální dotažení aktuálního stavu hry — fallback pro případ, že listener
+  // na mobilu nedoběhne. Tlačítko ho volá z obrazovky "Odhlasováno".
+  const refreshGameState = async () => {
+    try {
+      const snap = await getDoc(doc(db, ...GAME_STATE_PATH));
+      if (snap.exists()) setGameState(snap.data());
+    } catch (e) {
+      console.error('Manual refresh error:', e);
     }
   };
 
@@ -391,6 +402,15 @@ const App = () => {
             <p className="text-sm opacity-80">{currentQ_voter.explanation}</p>
           </div>
         )}
+        <button
+          onClick={refreshGameState}
+          className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 rounded-2xl font-bold flex items-center gap-2 transition-all"
+        >
+          <RefreshCw size={18} /> Načíst další otázku
+        </button>
+        <p className="text-xs text-slate-500 max-w-xs">
+          Až prezentující otevře další otázku, klepni sem.
+        </p>
       </div>
     );
   }
