@@ -11,7 +11,14 @@ const VOTES_COLLECTION_PATH = ['apps', APP_ID, 'votes'];
 
 const App = () => {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
+  // Role si pamatujeme v localStorage — po refreshi (např. tlačítkem "Načíst další otázku")
+  // zůstane voter voterem a nemusí znovu klikat na rozcestník.
+  const [role, setRoleState] = useState(() => localStorage.getItem('biolab-role'));
+  const setRole = (r) => {
+    if (r) localStorage.setItem('biolab-role', r);
+    else localStorage.removeItem('biolab-role');
+    setRoleState(r);
+  };
   const [gameState, setGameState] = useState({ currentQuestion: 0, status: 'waiting' });
   const [votes, setVotes] = useState([]);
   const [optimisticVote, setOptimisticVote] = useState(null); // { questionIndex, optionIndex } pro instant UI feedback
