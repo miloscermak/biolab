@@ -391,28 +391,30 @@ const App = () => {
       <div className="h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center space-y-6">
         <h1 className="text-2xl font-bold">Odhlasováno! 👍</h1>
         {gameState.status === 'results' && (
-          <div
-            className={`p-6 rounded-2xl border ${
-              myVote.optionIndex === currentQ_voter.correct
-                ? 'bg-emerald-500/10 border-emerald-500/30'
-                : 'bg-rose-500/10 border-rose-500/30'
-            }`}
-          >
-            <div className="font-bold text-lg mb-2">
-              {myVote.optionIndex === currentQ_voter.correct ? 'Správně!' : 'Vedle...'}
+          <>
+            <div
+              className={`p-6 rounded-2xl border ${
+                myVote.optionIndex === currentQ_voter.correct
+                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                  : 'bg-rose-500/10 border-rose-500/30'
+              }`}
+            >
+              <div className="font-bold text-lg mb-2">
+                {myVote.optionIndex === currentQ_voter.correct ? 'Správně!' : 'Vedle...'}
+              </div>
+              <p className="text-sm opacity-80">{currentQ_voter.explanation}</p>
             </div>
-            <p className="text-sm opacity-80">{currentQ_voter.explanation}</p>
-          </div>
+            <button
+              onClick={refreshGameState}
+              className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 rounded-2xl font-bold flex items-center gap-2 transition-all"
+            >
+              <RefreshCw size={18} /> Načíst další otázku
+            </button>
+            <p className="text-xs text-slate-500 max-w-xs">
+              Až prezentující otevře další otázku, klepni sem.
+            </p>
+          </>
         )}
-        <button
-          onClick={refreshGameState}
-          className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 rounded-2xl font-bold flex items-center gap-2 transition-all"
-        >
-          <RefreshCw size={18} /> Načíst další otázku
-        </button>
-        <p className="text-xs text-slate-500 max-w-xs">
-          Až prezentující otevře další otázku, klepni sem (stránka se obnoví, zůstaneš přihlášený).
-        </p>
       </div>
     );
   }
