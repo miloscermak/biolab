@@ -101,15 +101,10 @@ const App = () => {
     }
   };
 
-  // Manuální dotažení aktuálního stavu hry — fallback pro případ, že listener
-  // na mobilu nedoběhne. Tlačítko ho volá z obrazovky "Odhlasováno".
-  const refreshGameState = async () => {
-    try {
-      const snap = await getDoc(doc(db, ...GAME_STATE_PATH));
-      if (snap.exists()) setGameState(snap.data());
-    } catch (e) {
-      console.error('Manual refresh error:', e);
-    }
+  // Manuální obnovení — když Firestore listener i polling selžou, prostě reload stránky.
+  // Firebase Auth si pamatuje uid v localStorage, takže se voter neztratí.
+  const refreshGameState = () => {
+    window.location.reload();
   };
 
   const handleVote = async (optionIndex) => {
@@ -409,7 +404,7 @@ const App = () => {
           <RefreshCw size={18} /> Načíst další otázku
         </button>
         <p className="text-xs text-slate-500 max-w-xs">
-          Až prezentující otevře další otázku, klepni sem.
+          Až prezentující otevře další otázku, klepni sem (stránka se obnoví, zůstaneš přihlášený).
         </p>
       </div>
     );
