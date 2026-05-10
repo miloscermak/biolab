@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, addDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, addDoc, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 import { Users, ChevronRight, BarChart3, QrCode, Trophy, Presentation, Link as LinkIcon } from 'lucide-react';
 import { auth, db, APP_ID } from './firebase.js';
 import { QUESTIONS } from './questions.js';
@@ -31,12 +31,31 @@ const App = () => {
     const unsubscribe = onSnapshot(stateDoc, (snapshot) => {
       if (snapshot.exists()) {
         setGameState(snapshot.data());
-      } else if (role === 'presenter') {
-        setDoc(stateDoc, { currentQuestion: 0, status: 'waiting' });
       }
     }, (err) => console.error('State sync error:', err));
     return () => unsubscribe();
-  }, [user, role]);
+  }, [user]);
+
+  // Když se mobilní záložka probudí (uživatel se vrátí pohledem na telefon),
+  // vynutíme čerstvé načtení stavu — websocket mohl být uspaný a listener nemusí stihnout
+  useEffect(() => {
+    if (!user) return;
+    const refresh = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const snap = await getDoc(doc(db, ...GAME_STATE_PATH));
+        if (snap.exists()) setGameState(snap.data());
+      } catch (e) {
+        console.error('Visibility refresh error:', e);
+      }
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [user]);
 
   // Real-time sync hlasů
   useEffect(() => {
