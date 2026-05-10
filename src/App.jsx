@@ -14,7 +14,7 @@ const App = () => {
   const [role, setRole] = useState(null);
   const [gameState, setGameState] = useState({ currentQuestion: 0, status: 'waiting' });
   const [votes, setVotes] = useState([]);
-  const [hasVoted, setHasVoted] = useState(false);
+  const [optimisticVote, setOptimisticVote] = useState(null); // { questionIndex, optionIndex } pro instant UI feedback
   const [customUrl, setCustomUrl] = useState('');
 
   // Anonymní přihlášení do Firebase (každý hlasující dostane unikátní uid)
@@ -67,9 +67,26 @@ const App = () => {
     return () => unsubscribe();
   }, [user]);
 
-  // Reset příznaku "už jsem hlasoval" při přechodu na další otázku
+  // Záložní polling pro hlasující — pokud Firestore listener nedoběhne (mobilní browser
+  // ho může pozastavit), aktivně se ptáme na stav hry každé 2 sekundy.
+  // Nestojí to skoro nic (jeden malý read), ale garantuje to, že další otázka naskočí.
   useEffect(() => {
-    setHasVoted(false);
+    if (!user || role !== 'voter') return;
+    const tick = async () => {
+      try {
+        const snap = await getDoc(doc(db, ...GAME_STATE_PATH));
+        if (snap.exists()) setGameState(snap.data());
+      } catch (e) {
+        console.error('Polling error:', e);
+      }
+    };
+    const interval = setInterval(tick, 2000);
+    return () => clearInterval(interval);
+  }, [user, role]);
+
+  // Když se změní otázka, smažeme optimistický záznam (čekáme na Firestore data)
+  useEffect(() => {
+    setOptimisticVote(null);
   }, [gameState.currentQuestion]);
 
   const handleStartAsPresenter = async () => {
@@ -85,14 +102,20 @@ const App = () => {
   };
 
   const handleVote = async (optionIndex) => {
-    if (hasVoted || !user) return;
-    setHasVoted(true);
-    await addDoc(collection(db, ...VOTES_COLLECTION_PATH), {
-      questionIndex: gameState.currentQuestion,
-      optionIndex,
-      userId: user.uid,
-      timestamp: Date.now(),
-    });
+    if (!user || optimisticVote) return;
+    // Optimistický UI feedback — hned ukázat "Odhlasováno", aniž bychom čekali na round-trip
+    setOptimisticVote({ questionIndex: gameState.currentQuestion, optionIndex });
+    try {
+      await addDoc(collection(db, ...VOTES_COLLECTION_PATH), {
+        questionIndex: gameState.currentQuestion,
+        optionIndex,
+        userId: user.uid,
+        timestamp: Date.now(),
+      });
+    } catch (e) {
+      console.error('Vote error:', e);
+      setOptimisticVote(null); // při chybě umožnit retry
+    }
   };
 
   const nextStep = async () => {
@@ -315,8 +338,14 @@ const App = () => {
 
   // --- Pohled hlasujícího (mobil) ---
   const currentQ_voter = QUESTIONS[gameState.currentQuestion];
-  const myVote = votes.find(
+  const myVoteFromServer = votes.find(
     (v) => v.questionIndex === gameState.currentQuestion && v.userId === user.uid
+  );
+  // Pokud máme optimistický záznam pro tuto otázku, použijeme ho dokud nedorazí ze serveru
+  const myVote = myVoteFromServer || (
+    optimisticVote && optimisticVote.questionIndex === gameState.currentQuestion
+      ? optimisticVote
+      : null
   );
 
   if (gameState.status === 'waiting') {
@@ -344,11 +373,11 @@ const App = () => {
     );
   }
 
-  if (hasVoted || myVote) {
+  if (myVote) {
     return (
       <div className="h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center space-y-6">
         <h1 className="text-2xl font-bold">Odhlasováno! 👍</h1>
-        {gameState.status === 'results' && myVote && (
+        {gameState.status === 'results' && (
           <div
             className={`p-6 rounded-2xl border ${
               myVote.optionIndex === currentQ_voter.correct
